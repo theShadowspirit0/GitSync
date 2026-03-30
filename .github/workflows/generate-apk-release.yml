@@ -31,7 +31,7 @@ jobs:
             target
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
 
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v4
       - uses: actions-rust-lang/setup-rust-toolchain@v1
 
       - name: Create Secrets file
@@ -62,6 +62,9 @@ jobs:
 
       - name: Get Packages
         run: flutter pub get
+
+      - name: Generate Localizations
+        run: flutter gen-l10n
 
       - name: Generate Rust
         run: flutter_rust_bridge_codegen generate
@@ -96,7 +99,7 @@ jobs:
           } >> "$GITHUB_OUTPUT"
 
       - name: Upload Release Build to Artifacts
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v4
         with:
           name: release-artifacts
           path: |
