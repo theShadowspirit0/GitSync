@@ -67,8 +67,7 @@ jobs:
           git config --global user.name "Maher"
           git config --global user.email "actions@github.com"
 
-          git add lib/l10n/*.dart
-          git add lib/generated/**/*.dart || true
+          git add lib/l10n/
 
           if ! git diff --cached --quiet; then
             git commit -m "feat(l10n): add professional Arabic language support and generated localization files"
@@ -91,9 +90,7 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: generated-arabic-localization
-          path: |
-            lib/l10n/*.dart
-            lib/generated/**/*.dart
+          path: lib/l10n/
 
       - name: Upload Release APK Artifacts
         uses: actions/upload-artifact@v7
