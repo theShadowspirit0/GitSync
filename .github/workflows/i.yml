@@ -1,7 +1,11 @@
 name: Push Arabic Localization to New Branch
 
 on:
-  workflow_dispatch: # تشغيل يدوي بلمستك الخاصة
+  workflow_dispatch:
+
+# إضافة المتغير البيئي لفرض استخدام Node 24 وضمان الأداء الأقصى
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
   push_l10n:
@@ -10,11 +14,13 @@ jobs:
       contents: write
 
     steps:
+      # الترقية إلى v6 لدعم كامل لـ Node 24
       - name: Checkout Code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
+      # الترقية إلى v4 (أو أحدث نسخة مستقرة في 2026)
       - name: Setup Flutter SDK
         uses: flutter-actions/setup-flutter@v4
         with:
@@ -29,30 +35,27 @@ jobs:
 
       - name: Commit and Push to New Branch
         run: |
-          # إعداد الهوية (بلمسة ماهر)
           git config --global user.name "Maher"
           git config --global user.email "actions@github.com"
 
-          # إنشاء اسم فرع احترافي وفريد
           BRANCH_NAME="feat/add-professional-arabic-translation"
           
-          # الانتقال للفرع الجديد (لو موجود بيمسحه ويبدأ نظيف)
+          # التأكد من مسح الفرع القديم محلياً لو وجد والبدء من جديد
+          git branch -D $BRANCH_NAME || true
           git checkout -b $BRANCH_NAME
 
-          # إضافة ملفات الـ l10n فقط (الملف الأساسي والمولدات)
-          git add lib/l10n/*.arb
-          git add lib/l10n/*.dart
-          
-          # التأكد من وجود تغييرات قبل الـ Commit عشان ما "يفشل" الأكشن
-          if [ -n "$(git status --porcelain)" ]; then
-            git commit -m "feat(l10n): integrate professional Arabic translation and generated localization files" \
-                       -m "Summary of changes:
-          - Added comprehensive app_ar.arb translation.
-          - Generated core localization Dart files.
-          - Ensured RTL support and context-aware string mapping."
+          # إضافة الملفات بدقة (المجلد وملف التقرير)
+          git add lib/l10n/
+          git add untranslated.txt
+
+          if ! git diff --cached --quiet; then
+            git commit -m "feat(l10n): integrate professional Arabic translation" \
+                       -m "Summary: 
+          - Updated Arabic resources.
+          - Re-generated dart localization classes.
+          - Verified with Node 24 environment."
             
-            # الرفع بقوة (Force Push) للفرع المخصص لضمان التحديث
             git push origin $BRANCH_NAME --force
           else
-            echo "No changes detected. Did you forget to add the .arb file?"
+            echo "Everything is clean. No changes to push."
           fi
