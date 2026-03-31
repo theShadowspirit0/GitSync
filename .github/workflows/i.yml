@@ -1,10 +1,11 @@
-name: Push Arabic L10n (Clean & Surgical)
+name: Clean Arabic L10n PR (Upstream Base)
 
 on:
   workflow_dispatch:
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+  UPSTREAM_URL: "https://github.com/ViscousPot/GitSync.git"
 
 jobs:
   push_l10n:
@@ -13,7 +14,7 @@ jobs:
       contents: write
 
     steps:
-      - name: Checkout Code
+      - name: Checkout Your Fork
         uses: actions/checkout@v6
         with:
           fetch-depth: 0
@@ -30,33 +31,37 @@ jobs:
       - name: Generate Localization Files
         run: flutter gen-l10n
 
-      - name: Clean & Commit Only L10n
+      - name: Rebase and Surgical Commit
         run: |
           git config --global user.name "Maher"
           git config --global user.email "actions@github.com"
 
-          BRANCH_NAME="feat/add-professional-arabic-translation"
-          
-          # 1. العودة للحالة الأصلية تماماً وتجاهل كل العبث السابق
-          git checkout -b $BRANCH_NAME
-          git reset --hard origin/main # تأكد أن اسم الفرع الأساسي هو main أو master
+          # 1. إضافة المستودع الأصلي كمرجع (Upstream)
+          git remote add upstream ${{ env.UPSTREAM_URL }}
+          git fetch upstream
 
-          # 2. الآن نقوم بإجبار الأكشن على إضافة ملفاتك الأربعة "فقط"
-          # حتى لو كانت موجودة في الـ .gitignore سنضيفها بـ -f لضمان وصولها
+          # 2. إنشاء فرع جديد ينطلق "حصراً" من المستودع الأصلي (لحظة النقاء)
+          BRANCH_NAME="feat/professional-arabic-translation"
+          
+          # حذف الفرع محلياً لو كان موجوداً للبدء من جديد
+          git branch -D $BRANCH_NAME || true
+          git checkout -b $BRANCH_NAME upstream/main
+
+          # 3. إضافة الملفات الأربعة "الناجية" من عملية التطهير
+          # نستخدم -f للتأكد من تجاوز أي تجاهل (ignore) قديم
           git add -f lib/l10n/app_ar.arb
           git add -f lib/l10n/app_localizations_ar.dart
           git add -f lib/l10n/app_localizations.dart
           git add -f untranslated.txt
 
-          # 3. التأكد من أن ملفات الـ Workflows التي عبثت بها لم يتم ضمها
-          # هذا الأمر سيعيد أي ملف آخر لحالته الأصلية في المستودع
-          git checkout . 
-
+          # 4. الالتزام والرفع بالقوة للمستودع الخاص بك (Your Fork)
           if ! git diff --cached --quiet; then
             git commit -m "feat(l10n): add professional Arabic localization support" \
-                       -m "Surgical update: Only localization files are included. All other repository files remain untouched."
+                       -m "Surgical update based on upstream/main:
+          - Cleaned all workflow/release experiments.
+          - Included only the 4 essential localization files."
             
             git push origin $BRANCH_NAME --force
           else
-            echo "No changes found in the 4 specific files!"
+            echo "No changes detected. Everything is up to date with upstream!"
           fi
