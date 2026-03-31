@@ -1,10 +1,9 @@
-name: Push Arabic L10n - 2026 Edition
+name: Push Arabic L10n (Clean & Surgical)
 
 on:
   workflow_dispatch:
 
 env:
-  # فرض استخدام Node 24 للتخلص من كل التحذيرات القديمة
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
@@ -15,23 +14,15 @@ jobs:
 
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v6 # أحدث نسخة مستقرة
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
       - name: Setup Flutter SDK
-        uses: flutter-actions/setup-flutter@v4 # متوافق مع v3.35.2
+        uses: flutter-actions/setup-flutter@v4
         with:
           channel: stable
           version: 3.35.2
-
-      - name: Cache Flutter Pub Packages
-        uses: actions/cache@v5 # أحدث نسخة للكاش
-        with:
-          path: ~/.pub-cache
-          key: ${{ runner.os }}-pub-${{ hashFiles('**/pubspec.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-pub-
 
       - name: Get Packages
         run: flutter pub get
@@ -39,31 +30,33 @@ jobs:
       - name: Generate Localization Files
         run: flutter gen-l10n
 
-      - name: Surgical Commit for Maher
+      - name: Clean & Commit Only L10n
         run: |
           git config --global user.name "Maher"
           git config --global user.email "actions@github.com"
 
           BRANCH_NAME="feat/add-professional-arabic-translation"
           
-          # الانتقال للفرع الجديد بأسلوب نظيف
+          # 1. العودة للحالة الأصلية تماماً وتجاهل كل العبث السابق
           git checkout -b $BRANCH_NAME
+          git reset --hard origin/main # تأكد أن اسم الفرع الأساسي هو main أو master
 
-          # إضافة الأربعة الكبار فقط
-          git add lib/l10n/app_ar.arb
-          git add lib/l10n/app_localizations_ar.dart
-          git add lib/l10n/app_localizations.dart
-          git add untranslated.txt
+          # 2. الآن نقوم بإجبار الأكشن على إضافة ملفاتك الأربعة "فقط"
+          # حتى لو كانت موجودة في الـ .gitignore سنضيفها بـ -f لضمان وصولها
+          git add -f lib/l10n/app_ar.arb
+          git add -f lib/l10n/app_localizations_ar.dart
+          git add -f lib/l10n/app_localizations.dart
+          git add -f untranslated.txt
+
+          # 3. التأكد من أن ملفات الـ Workflows التي عبثت بها لم يتم ضمها
+          # هذا الأمر سيعيد أي ملف آخر لحالته الأصلية في المستودع
+          git checkout . 
 
           if ! git diff --cached --quiet; then
             git commit -m "feat(l10n): add professional Arabic localization support" \
-                       -m "Verified on Node 24 and Flutter 3.35.2.
-          Included files:
-          - Arabic Strings (ARB)
-          - Generated Dart Logic
-          - Translation Coverage Report (untranslated.txt)"
+                       -m "Surgical update: Only localization files are included. All other repository files remain untouched."
             
             git push origin $BRANCH_NAME --force
           else
-            echo "No changes detected in the target files. Everything is up to date!"
+            echo "No changes found in the 4 specific files!"
           fi
