@@ -1,10 +1,10 @@
-name: Push Arabic Localization to New Branch
+name: Push Arabic L10n - 2026 Edition
 
 on:
   workflow_dispatch:
 
-# إضافة المتغير البيئي لفرض استخدام Node 24 وضمان الأداء الأقصى
 env:
+  # فرض استخدام Node 24 للتخلص من كل التحذيرات القديمة
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
@@ -14,18 +14,24 @@ jobs:
       contents: write
 
     steps:
-      # الترقية إلى v6 لدعم كامل لـ Node 24
       - name: Checkout Code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v6 # أحدث نسخة مستقرة
         with:
           fetch-depth: 0
 
-      # الترقية إلى v4 (أو أحدث نسخة مستقرة في 2026)
       - name: Setup Flutter SDK
-        uses: flutter-actions/setup-flutter@v4
+        uses: flutter-actions/setup-flutter@v4 # متوافق مع v3.35.2
         with:
           channel: stable
           version: 3.35.2
+
+      - name: Cache Flutter Pub Packages
+        uses: actions/cache@v5 # أحدث نسخة للكاش
+        with:
+          path: ~/.pub-cache
+          key: ${{ runner.os }}-pub-${{ hashFiles('**/pubspec.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-pub-
 
       - name: Get Packages
         run: flutter pub get
@@ -33,29 +39,31 @@ jobs:
       - name: Generate Localization Files
         run: flutter gen-l10n
 
-      - name: Commit and Push to New Branch
+      - name: Surgical Commit for Maher
         run: |
           git config --global user.name "Maher"
           git config --global user.email "actions@github.com"
 
           BRANCH_NAME="feat/add-professional-arabic-translation"
           
-          # التأكد من مسح الفرع القديم محلياً لو وجد والبدء من جديد
-          git branch -D $BRANCH_NAME || true
+          # الانتقال للفرع الجديد بأسلوب نظيف
           git checkout -b $BRANCH_NAME
 
-          # إضافة الملفات بدقة (المجلد وملف التقرير)
-          git add lib/l10n/
+          # إضافة الأربعة الكبار فقط
+          git add lib/l10n/app_ar.arb
+          git add lib/l10n/app_localizations_ar.dart
+          git add lib/l10n/app_localizations.dart
           git add untranslated.txt
 
           if ! git diff --cached --quiet; then
-            git commit -m "feat(l10n): integrate professional Arabic translation" \
-                       -m "Summary: 
-          - Updated Arabic resources.
-          - Re-generated dart localization classes.
-          - Verified with Node 24 environment."
+            git commit -m "feat(l10n): add professional Arabic localization support" \
+                       -m "Verified on Node 24 and Flutter 3.35.2.
+          Included files:
+          - Arabic Strings (ARB)
+          - Generated Dart Logic
+          - Translation Coverage Report (untranslated.txt)"
             
             git push origin $BRANCH_NAME --force
           else
-            echo "Everything is clean. No changes to push."
+            echo "No changes detected in the target files. Everything is up to date!"
           fi
