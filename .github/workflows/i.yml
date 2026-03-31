@@ -1,0 +1,58 @@
+name: Push Arabic Localization to New Branch
+
+on:
+  workflow_dispatch: # تشغيل يدوي بلمستك الخاصة
+
+jobs:
+  push_l10n:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Flutter SDK
+        uses: flutter-actions/setup-flutter@v4
+        with:
+          channel: stable
+          version: 3.35.2
+
+      - name: Get Packages
+        run: flutter pub get
+
+      - name: Generate Localization Files
+        run: flutter gen-l10n
+
+      - name: Commit and Push to New Branch
+        run: |
+          # إعداد الهوية (بلمسة ماهر)
+          git config --global user.name "Maher"
+          git config --global user.email "actions@github.com"
+
+          # إنشاء اسم فرع احترافي وفريد
+          BRANCH_NAME="feat/add-professional-arabic-translation"
+          
+          # الانتقال للفرع الجديد (لو موجود بيمسحه ويبدأ نظيف)
+          git checkout -b $BRANCH_NAME
+
+          # إضافة ملفات الـ l10n فقط (الملف الأساسي والمولدات)
+          git add lib/l10n/*.arb
+          git add lib/l10n/*.dart
+          
+          # التأكد من وجود تغييرات قبل الـ Commit عشان ما "يفشل" الأكشن
+          if [ -n "$(git status --porcelain)" ]; then
+            git commit -m "feat(l10n): integrate professional Arabic translation and generated localization files" \
+                       -m "Summary of changes:
+          - Added comprehensive app_ar.arb translation.
+          - Generated core localization Dart files.
+          - Ensured RTL support and context-aware string mapping."
+            
+            # الرفع بقوة (Force Push) للفرع المخصص لضمان التحديث
+            git push origin $BRANCH_NAME --force
+          else
+            echo "No changes detected. Did you forget to add the .arb file?"
+          fi
