@@ -1,4 +1,4 @@
-name: Clean Arabic L10n PR (Upstream Base)
+name: Clean Arabic L10n PR (Final Surgical Edition)
 
 on:
   workflow_dispatch:
@@ -8,60 +8,82 @@ env:
   UPSTREAM_URL: "https://github.com/ViscousPot/GitSync.git"
 
 jobs:
-  push_l10n:
+  build_and_push_l10n:
     runs-on: ubuntu-latest
     permissions:
       contents: write
 
     steps:
-      - name: Checkout Your Fork
+      # 1. جلب الكود من فرعك الحالي (الذي يحتوي على الملف العربي)
+      - name: Checkout Current Fork
         uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
+      # 2. إعداد بيئة فلاتر (أحدث النسخ المستقرة 2026)
       - name: Setup Flutter SDK
         uses: flutter-actions/setup-flutter@v4
         with:
           channel: stable
           version: 3.35.2
 
+      - name: Cache Flutter Pub Packages
+        uses: actions/cache@v5
+        with:
+          path: ~/.pub-cache
+          key: ${{ runner.os }}-pub-${{ hashFiles('**/pubspec.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-pub-
+
       - name: Get Packages
         run: flutter pub get
 
-      - name: Generate Localization Files
-        run: flutter gen-l10n
+      # 3. خطة الإنقاذ: نسخ ملف الـ ARB قبل مسح التاريخ
+      - name: Backup Arabic ARB File
+        run: |
+          mkdir -p /tmp/l10n_backup
+          if [ -f lib/l10n/app_ar.arb ]; then
+            cp lib/l10n/app_ar.arb /tmp/l10n_backup/app_ar.arb
+            echo "Successfully backed up app_ar.arb"
+          else
+            echo "Error: lib/l10n/app_ar.arb not found in current branch!"
+            exit 1
+          fi
 
+      # 4. التطهير والعودة للأصل (Upstream)
       - name: Rebase and Surgical Commit
         run: |
           git config --global user.name "Maher"
           git config --global user.email "actions@github.com"
 
-          # 1. إضافة المستودع الأصلي كمرجع (Upstream)
+          # إضافة المستودع الأصلي
           git remote add upstream ${{ env.UPSTREAM_URL }}
           git fetch upstream
 
-          # 2. إنشاء فرع جديد ينطلق "حصراً" من المستودع الأصلي (لحظة النقاء)
+          # إنشاء فرع جديد نظيف تماماً من "ViscousPot/main"
           BRANCH_NAME="feat/professional-arabic-translation"
-          
-          # حذف الفرع محلياً لو كان موجوداً للبدء من جديد
           git branch -D $BRANCH_NAME || true
           git checkout -b $BRANCH_NAME upstream/main
 
-          # 3. إضافة الملفات الأربعة "الناجية" من عملية التطهير
-          # نستخدم -f للتأكد من تجاوز أي تجاهل (ignore) قديم
+          # إعادة زرع ملف الـ ARB في الفرع النظيف
+          mkdir -p lib/l10n
+          cp /tmp/l10n_backup/app_ar.arb lib/l10n/app_ar.arb
+
+          # توليد ملفات الدارت بناءً على البيئة النظيفة
+          flutter gen-l10n
+
+          # إضافة الملفات الأربعة "حصراً"
           git add -f lib/l10n/app_ar.arb
           git add -f lib/l10n/app_localizations_ar.dart
           git add -f lib/l10n/app_localizations.dart
           git add -f untranslated.txt
 
-          # 4. الالتزام والرفع بالقوة للمستودع الخاص بك (Your Fork)
+          # الالتزام والرفع
           if ! git diff --cached --quiet; then
             git commit -m "feat(l10n): add professional Arabic localization support" \
-                       -m "Surgical update based on upstream/main:
-          - Cleaned all workflow/release experiments.
-          - Included only the 4 essential localization files."
+                       -m "Surgical update: Branch built directly on upstream/main for a clean PR."
             
             git push origin $BRANCH_NAME --force
           else
-            echo "No changes detected. Everything is up to date with upstream!"
+            echo "No changes detected against upstream/main!"
           fi
